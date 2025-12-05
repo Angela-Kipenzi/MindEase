@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "description": "Backend API for MindEase mental health web application",
   "main": "dist/server.js",
-
   "scripts": {
     "dev": "nodemon src/server.ts",
-    "build": "echo 'Build completed successfully'",
-    "start": "ts-node src/server.ts"
+    "build": "tsc",
+    "start": "node dist/server.js"
   },
   "author": "Angela",
   "license": "MIT",

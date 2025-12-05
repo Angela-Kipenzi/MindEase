@@ -269,14 +269,12 @@ connectDatabase().then(() => {
     console.log(`CORS Origins: ${JSON.stringify(getAllowedOrigins())}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not configured'}`);
     console.log(`CORS Origin: ${process.env.CORS_ORIGIN || 'Not configured'}`);
-    console.log('========================================');
     console.log('API Endpoints:');
     console.log(` Health: http://localhost:${PORT}/api/health`);
     console.log(`Debug: http://localhost:${PORT}/api/debug`);
     console.log(`Test: http://localhost:${PORT}/api/test`);
-    console.log('========================================');
     console.log('Socket.io is ready for real-time connections');
-    console.log('========================================');
+    
   });
 }).catch((error) => {
   console.error('Failed to connect to database:', error);
