@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -25,7 +25,7 @@ const httpServer = createServer(app);
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Define allowed origins for different environments
-const getAllowedOrigins = () => {
+const getAllowedOrigins = (): string[] => {
   const origins: string[] = [];
   
   // Always allow localhost for development
@@ -54,7 +54,7 @@ const getAllowedOrigins = () => {
   return [...new Set(origins)];
 };
 
-const corsOptions = {
+const corsOptions: cors.CorsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     const allowedOrigins = getAllowedOrigins();
     
@@ -112,15 +112,12 @@ const io = new SocketIOServer(httpServer, {
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Handle preflight requests - FIXED: Use app.options with specific routes or handle differently
-// app.options('*', cors(corsOptions)); // This causes the error in newer Express
-
 // ==================== MIDDLEWARE ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Request logging middleware
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   console.log('Origin:', req.headers.origin || 'No origin');
   console.log('User-Agent:', req.headers['user-agent']?.substring(0, 50) + '...');
@@ -140,7 +137,7 @@ app.use('/api/resources', resourceRoutes);
 // ==================== HEALTH & DEBUG ENDPOINTS ====================
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.send(`
     <html>
       <head><title>MindEase Backend</title></head>
@@ -162,7 +159,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({ 
     status: 'ok', 
     message: 'MindEase API is running',
@@ -173,7 +170,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Debug endpoint
-app.get('/api/debug', (req, res) => {
+app.get('/api/debug', (req: Request, res: Response) => {
   res.json({
     environment: process.env.NODE_ENV || 'development',
     allowedOrigins: getAllowedOrigins(),
@@ -195,7 +192,7 @@ app.get('/api/debug', (req, res) => {
 });
 
 // Test endpoint
-app.get('/api/test', (req, res) => {
+app.get('/api/test', (req: Request, res: Response) => {
   res.json({ 
     message: 'Test endpoint is working!',
     status: 'success',
@@ -205,7 +202,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // Test POST endpoint (for login testing)
-app.post('/api/test/login', (req, res) => {
+app.post('/api/test/login', (req: Request, res: Response) => {
   console.log('Test login request body:', req.body);
   res.json({ 
     message: 'Test login endpoint is accessible!',
@@ -217,8 +214,8 @@ app.post('/api/test/login', (req, res) => {
 
 // ==================== ERROR HANDLING ====================
 
-// 404 handler - FIXED: Use explicit path instead of wildcard '*'
-app.use((req, res, next) => {
+// 404 handler
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path === '/' || req.path.startsWith('/api/')) {
     // If it's an API route we didn't catch, return 404
     res.status(404).json({
@@ -246,7 +243,7 @@ app.use((req, res, next) => {
 });
 
 // Error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',
@@ -265,23 +262,23 @@ connectDatabase().then(() => {
     console.log('========================================');
     console.log(' MindEase Backend Server Started');
     console.log('========================================');
-    console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(` Port: ${PORT}`);
-    console.log(` Local: http://localhost:${PORT}`);
-    console.log(` Network: http://0.0.0.0:${PORT}`);
-    console.log(` CORS Origins: ${JSON.stringify(getAllowedOrigins())}`);
-    console.log(` Frontend URL: ${process.env.FRONTEND_URL || 'Not configured'}`);
-    console.log(` CORS Origin: ${process.env.CORS_ORIGIN || 'Not configured'}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Port: ${PORT}`);
+    console.log(`Local: http://localhost:${PORT}`);
+    console.log(`Network: http://0.0.0.0:${PORT}`);
+    console.log(`CORS Origins: ${JSON.stringify(getAllowedOrigins())}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not configured'}`);
+    console.log(`CORS Origin: ${process.env.CORS_ORIGIN || 'Not configured'}`);
     console.log('========================================');
-    console.log(' API Endpoints:');
-    console.log(`   Health: http://localhost:${PORT}/api/health`);
-    console.log(`   Debug: http://localhost:${PORT}/api/debug`);
-    console.log(`   Test: http://localhost:${PORT}/api/test`);
+    console.log('API Endpoints:');
+    console.log(` Health: http://localhost:${PORT}/api/health`);
+    console.log(`Debug: http://localhost:${PORT}/api/debug`);
+    console.log(`Test: http://localhost:${PORT}/api/test`);
     console.log('========================================');
-    console.log(' Socket.io is ready for real-time connections');
+    console.log('Socket.io is ready for real-time connections');
     console.log('========================================');
   });
 }).catch((error) => {
-  console.error(' Failed to connect to database:', error);
+  console.error('Failed to connect to database:', error);
   process.exit(1);
 });
