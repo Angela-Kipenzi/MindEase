@@ -43,7 +43,7 @@ export function UpcomingSessions({ onBack, onJoinSession }: UpcomingSessionsProp
   const loadSessions = async () => {
   try {
     setLoading(true);
-    // Try to load from API first
+    // load from API first
     const upcomingSessions = await sessionsAPI.getUpcoming(); // This should only return future sessions
     
     // Transform API sessions to match our interface
@@ -166,17 +166,24 @@ export function UpcomingSessions({ onBack, onJoinSession }: UpcomingSessionsProp
     });
   };
 
-  const formatTime = (timeString: string) => {
-    // Convert 24h time to 12h format if needed
-    if (timeString.includes(':')) {
-      const [hours, minutes] = timeString.split(':');
-      const hourNum = parseInt(hours);
-      const period = hourNum >= 12 ? 'PM' : 'AM';
-      const displayHour = hourNum % 12 || 12;
-      return `${displayHour}:${minutes} ${period}`;
-    }
-    return timeString;
-  };
+ const formatTime = (timeString: string) => {
+  // If time already contains AM or PM, return it as-is
+  if (timeString.includes('AM') || timeString.includes('PM')) {
+    // Remove any duplicate AM/PM and extra spaces
+    return timeString.replace(/\s*(AM|PM)\s*(AM|PM)\s*/gi, ' $1').trim();
+  }
+  
+  // Convert 24h time to 12h format if needed
+  if (timeString.includes(':')) {
+    const [hours, minutes] = timeString.split(':');
+    const hourNum = parseInt(hours);
+    const period = hourNum >= 12 ? 'PM' : 'AM';
+    const displayHour = hourNum % 12 || 12;
+    return `${displayHour}:${minutes} ${period}`;
+  }
+  
+  return timeString;
+};
 
   if (loading) {
     return (

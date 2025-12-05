@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface ITherapist extends Document {
-  userId: Types.ObjectId; // Use Types.ObjectId instead of mongoose.Types.ObjectId
+  userId: Types.ObjectId;
   name: string;
   realName: string;
   initials: string;
@@ -10,6 +10,7 @@ export interface ITherapist extends Document {
   reviews: number;
   availability: string;
   about: string;
+  bio?: string;
   credentials: string;
   color: string;
   weeklyAvailability: Array<{
@@ -22,6 +23,11 @@ export interface ITherapist extends Document {
   languages: string[];
   hourlyRate: number;
   totalSessions: number;
+  email?: string;
+  phone?: string;
+  licenseNumber?: string;
+  specialization?: string;
+  yearsOfExperience?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,6 +72,10 @@ const TherapistSchema = new Schema<ITherapist>(
       type: String,
       default: '',
     },
+    bio: {
+      type: String,
+      default: '',
+    },
     credentials: {
       type: String,
       required: true,
@@ -93,15 +103,21 @@ const TherapistSchema = new Schema<ITherapist>(
     languages: {
       type: [String],
       default: ['English'],
+      required: true,
     },
     hourlyRate: {
       type: Number,
-      default: 0,
+      default: 150,
     },
     totalSessions: {
       type: Number,
       default: 0,
     },
+    email: String,
+    phone: String,
+    licenseNumber: String,
+    specialization: String,
+    yearsOfExperience: Number,
   },
   {
     timestamps: true,

@@ -5,7 +5,7 @@ import { authenticateToken, AuthRequest, authorizeRole } from '../middleware/aut
 
 const router = express.Router();
 
-// Get therapist profile for current user - FIXED
+// Get therapist profile for current user
 router.get('/me', 
   authenticateToken, 
   authorizeRole('therapist'),
@@ -55,7 +55,7 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
 
     // Transform data for frontend
     const transformedTherapists = therapists.map(therapist => ({
-      _id: therapist._id, // FIXED: Use _id not id
+      _id: therapist._id,
       userId: therapist.userId,
       realName: therapist.realName,
       name: therapist.name,
@@ -65,6 +65,7 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
       reviews: therapist.reviews,
       experience: therapist.experience,
       about: therapist.about,
+      bio: therapist.bio,
       credentials: therapist.credentials,
       color: therapist.color,
       hourlyRate: therapist.hourlyRate,
@@ -72,7 +73,12 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
       totalSessions: therapist.totalSessions,
       availability: therapist.availability,
       isVerified: therapist.isVerified,
-      profileImage: (therapist.userId as any)?.profileImage
+      profileImage: (therapist.userId as any)?.profileImage,
+      email: therapist.email,
+      phone: therapist.phone,
+      licenseNumber: therapist.licenseNumber,
+      specialization: therapist.specialization,
+      yearsOfExperience: therapist.yearsOfExperience
     }));
 
     res.json(transformedTherapists);

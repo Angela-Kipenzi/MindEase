@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -7,34 +7,72 @@ import { Checkbox } from "./ui/checkbox";
 import { Heart, Shield, ArrowLeft } from "lucide-react";
 import { authAPI } from "../lib/api";
 import { Alert, AlertDescription } from "./ui/alert";
+import { Textarea } from "./ui/textarea";
+import { Badge } from "./ui/badge";
 
 interface AuthPageProps {
   onLogin: () => void;
   onBack: () => void;
+  initialMode?: 'login' | 'signup';
 }
 
-export function AuthPage({ onLogin, onBack }: AuthPageProps) {
+export function AuthPage({ onLogin, onBack, initialMode = 'login' }: AuthPageProps) {
   const [userType, setUserType] = useState<'user' | 'therapist'>('user');
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(initialMode === 'signup');
+  const [isForcedSignup, setIsForcedSignup] = useState(initialMode === 'signup');
   
   // User fields
-  const [anonymousName, setAnonymousName] = useState(''); // NEW: For user-created anonymous name
-  const [username, setUsername] = useState('');
+  const [anonymousName, setAnonymousName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // Therapist fields
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [therapistEmail, setTherapistEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [bio, setBio] = useState('');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['English']);
+  const [newLanguage, setNewLanguage] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Available languages for selection
+  const availableLanguages = [
+    'English', 'Spanish', 'French', 'German', 'Chinese', 'Hindi',
+    'Arabic', 'Portuguese', 'Russian', 'Japanese', 'Swahili'
+  ];
+
+  // Prevent switching to login if forced to signup
+  useEffect(() => {
+    if (initialMode === 'signup') {
+      setIsSignup(true);
+      setIsForcedSignup(true);
+    }
+  }, [initialMode]);
+
+  const handleAddLanguage = () => {
+    if (newLanguage.trim() && !selectedLanguages.includes(newLanguage.trim())) {
+      setSelectedLanguages([...selectedLanguages, newLanguage.trim()]);
+      setNewLanguage('');
+    }
+  };
+
+  const handleRemoveLanguage = (language: string) => {
+    setSelectedLanguages(selectedLanguages.filter(l => l !== language));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddLanguage();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +82,8 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
     try {
       if (isSignup) {
         if (userType === 'user') {
-          // Updated validation for user signup
-          if (!anonymousName || !username || !password || !confirmPassword) {
+          // User signup validation
+          if (!anonymousName || !email || !password || !confirmPassword) {
             setError('Please fill in all fields');
             setIsLoading(false);
             return;
@@ -63,18 +101,37 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
             return;
           }
           
-          // Use the provided anonymous name
+          // Email validation
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(email)) {
+            setError('Please enter a valid email address');
+            setIsLoading(false);
+            return;
+          }
+          
           await authAPI.signup({
-            username: username,
-            password,
+            email: email,
+            password: password,
             role: 'user',
-            anonymousName: anonymousName, // User-created anonymous name
+            anonymousName: anonymousName,
           });
           
         } else {
-          // Therapist signup remains the same
-          if (!fullName || !email || !phone || !licenseNumber || !specialization || !yearsOfExperience) {
+          // Therapist signup validation
+          if (!fullName || !therapistEmail || !password || !confirmPassword || !phone || !licenseNumber || !specialization || !yearsOfExperience || !bio || selectedLanguages.length === 0) {
             setError('Please fill in all required fields');
+            setIsLoading(false);
+            return;
+          }
+          
+          if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+          }
+          
+          if (password.length < 6) {
+            setError('Password must be at least 6 characters long');
             setIsLoading(false);
             return;
           }
@@ -85,40 +142,43 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
             return;
           }
           
+          // Email validation for therapist
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(therapistEmail)) {
+            setError('Please enter a valid email address');
+            setIsLoading(false);
+            return;
+          }
+          
+          // IMPORTANT: Do NOT include anonymousName for therapists
           const signupData = {
-            username: email,
-            password: licenseNumber,
+            email: therapistEmail,
+            password: password,
             role: 'therapist' as const,
-            email: email,
             fullName: fullName,
             phone: phone,
             licenseNumber: licenseNumber,
             specialization: specialization,
             yearsOfExperience: parseInt(yearsOfExperience),
-            credentials: `License: ${licenseNumber}, Specialization: ${specialization}, Experience: ${yearsOfExperience} years`
+            bio: bio,
+            languages: selectedLanguages,
+            credentials: `License: ${licenseNumber}, Specialization: ${specialization}, Experience: ${yearsOfExperience} years, Languages: ${selectedLanguages.join(', ')}`
           };
           
           await authAPI.signup(signupData);
         }
       } else {
         // Login logic
-        if (userType === 'user') {
-          if (!username || !password) {
-            setError('Please enter username and password');
-            setIsLoading(false);
-            return;
-          }
-        } else {
-          if (!email || !licenseNumber) {
-            setError('Please enter email and license number');
-            setIsLoading(false);
-            return;
-          }
+        const loginEmail = userType === 'user' ? email : therapistEmail;
+        if (!loginEmail || !password) {
+          setError('Please enter email and password');
+          setIsLoading(false);
+          return;
         }
         
         await authAPI.login({
-          username: userType === 'user' ? username : email,
-          password: userType === 'user' ? password : licenseNumber,
+          username: loginEmail,
+          password: password,
           role: userType
         });
       }
@@ -134,17 +194,19 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
   };
 
   const resetForm = () => {
-    setAnonymousName(''); // NEW: Reset anonymous name
-    setUsername('');
+    setAnonymousName(''); 
+    setEmail('');
     setPassword('');
     setConfirmPassword('');
     setFullName('');
-    setEmail('');
+    setTherapistEmail('');
     setPhone('');
     setLicenseNumber('');
     setSpecialization('');
     setYearsOfExperience('');
     setBio('');
+    setSelectedLanguages(['English']);
+    setNewLanguage('');
     setTermsAccepted(false);
     setError('');
   };
@@ -155,8 +217,11 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
   };
 
   const handleAuthTypeToggle = () => {
-    setIsSignup(!isSignup);
-    resetForm();
+    // Don't allow toggle if forced to signup
+    if (!isForcedSignup) {
+      setIsSignup(!isSignup);
+      resetForm();
+    }
   };
 
   return (
@@ -175,9 +240,10 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
             Back to Home
           </Button>
 
-          <div className="grid lg:grid-cols-2 gap-8 items-center">
-            {/* Left Side - Branding */}
-            <div className="space-y-8">
+          <div className="grid lg:grid-cols-2 gap-8 items-start lg:items-center">
+            
+            {/* Left Side - Branding - Moved UP with negative margin */}
+            <div className="space-y-8 -mt-8 lg:mt-0">
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
                   <Heart className="h-8 w-8 text-white" />
@@ -225,14 +291,14 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                     className="flex-1"
                     onClick={() => handleUserTypeChange('user')}
                   >
-                    I'm a User
+                    User
                   </Button>
                   <Button
                     variant={userType === 'therapist' ? 'default' : 'outline'}
                     className="flex-1"
                     onClick={() => handleUserTypeChange('therapist')}
                   >
-                    I'm a Therapist
+                    Therapist
                   </Button>
                 </div>
                 <div>
@@ -254,17 +320,17 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                     </Alert>
                   )}
 
-                  {/* USER LOGIN FORM */}
-                  {!isSignup && userType === 'user' && (
+                  {/* LOGIN FORM (Common for both user types) */}
+                  {!isSignup && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="loginUsername">Username</Label>
+                        <Label htmlFor="loginEmail">Email Address</Label>
                         <Input
-                          id="loginUsername"
-                          type="text"
-                          placeholder="Enter your username"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
+                          id="loginEmail"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={userType === 'user' ? email : therapistEmail}
+                          onChange={(e) => userType === 'user' ? setEmail(e.target.value) : setTherapistEmail(e.target.value)}
                           required
                           className="h-12"
                           disabled={isLoading}
@@ -286,13 +352,30 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                     </>
                   )}
 
-                  {/* THERAPIST LOGIN FORM */}
-                  {!isSignup && userType === 'therapist' && (
+                  {/* USER SIGNUP FORM */}
+                  {isSignup && userType === 'user' && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="therapistEmail">Email Address</Label>
+                        <Label htmlFor="anonymousName">Anonymous Name </Label>
                         <Input
-                          id="therapistEmail"
+                          id="anonymousName"
+                          type="text"
+                          placeholder="Create your unique anonymous name"
+                          value={anonymousName}
+                          onChange={(e) => setAnonymousName(e.target.value)}
+                          required
+                          className="h-12"
+                          disabled={isLoading}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This name will protect your identity during sessions. Choose something describing you.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address </Label>
+                        <Input
+                          id="email"
                           type="email"
                           placeholder="your@email.com"
                           value={email}
@@ -302,58 +385,9 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                           disabled={isLoading}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="therapistLicense">License Number</Label>
-                        <Input
-                          id="therapistLicense"
-                          type="text"
-                          placeholder="Enter your license number"
-                          value={licenseNumber}
-                          onChange={(e) => setLicenseNumber(e.target.value)}
-                          required
-                          className="h-12"
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {/* USER SIGNUP FORM */}
-                  {isSignup && userType === 'user' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="anonymousName">Choose Your Anonymous Name *</Label>
-                        <Input
-                          id="anonymousName"
-                          type="text"
-                          placeholder="Create your unique anonymous name (e.g., CalmTiger, PeacefulOwl, etc.)"
-                          value={anonymousName}
-                          onChange={(e) => setAnonymousName(e.target.value)}
-                          required
-                          className="h-12"
-                          disabled={isLoading}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          This name will protect your identity during sessions. Choose something meaningful to you.
-                        </p>
-                      </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="username">Username for Login *</Label>
-                        <Input
-                          id="username"
-                          type="text"
-                          placeholder="Choose a username for logging in"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          required
-                          className="h-12"
-                          disabled={isLoading}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password *</Label>
+                        <Label htmlFor="password">Password </Label>
                         <Input
                           id="password"
                           type="password"
@@ -367,7 +401,7 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                        <Label htmlFor="confirmPassword">Confirm Password </Label>
                         <Input
                           id="confirmPassword"
                           type="password"
@@ -384,33 +418,30 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
 
                   {/* THERAPIST SIGNUP FORM */}
                   {isSignup && userType === 'therapist' && (
-  <>
-    <div className="space-y-2">
-      <Label htmlFor="fullName">Full Name *</Label>
-      <Input
-        id="fullName"
-        type="text"
-        placeholder="Dr. Alice Smith"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-        required
-        className="h-12"
-        disabled={isLoading}
-      />
-      <p className="text-xs text-muted-foreground">
-        This will be your professional name displayed to clients
-      </p>
-    </div>
-    
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name </Label>
+                        <Input
+                          id="fullName"
+                          type="text"
+                          placeholder="Dr. Alice Smith"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          required
+                          className="h-12"
+                          disabled={isLoading}
+                        />
+                        
+                      </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address *</Label>
+                        <Label htmlFor="therapistEmail">Email Address </Label>
                         <Input
-                          id="email"
+                          id="therapistEmail"
                           type="email"
                           placeholder="your@email.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          value={therapistEmail}
+                          onChange={(e) => setTherapistEmail(e.target.value)}
                           required
                           className="h-12"
                           disabled={isLoading}
@@ -418,24 +449,54 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="bio">Professional Bio (Optional)</Label>
-                        <textarea
-                          id="bio"
-                          placeholder="Tell us about your experience and approach to therapy..."
-                          value={bio}
-                          onChange={(e) => setBio(e.target.value)}
-                          className="w-full p-3 border rounded-md min-h-[100px] resize-vertical"
+                        <Label htmlFor="password">Password </Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          className="h-12"
                           disabled={isLoading}
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password </Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          placeholder="••••••••"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          className="h-12"
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bio">Professional Bio </Label>
+                        <Textarea
+                          id="bio"
+                          placeholder="Tell us about your experience, approach to therapy, and what clients can expect..."
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value)}
+                          required
+                          className="min-h-[120px] resize-vertical"
+                          disabled={isLoading}
+                        />
+                        
                       </div>
                       
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="phone">Phone Number *</Label>
+                          <Label htmlFor="phone">Phone Number </Label>
                           <Input
                             id="phone"
                             type="tel"
-                            placeholder="+(254)700XXXXXX"
+                            placeholder="+254 712 345 678"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             required
@@ -444,11 +505,11 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="licenseNumber">License Number *</Label>
+                          <Label htmlFor="licenseNumber">License Number </Label>
                           <Input
                             id="licenseNumber"
                             type="text"
-                            placeholder="LIC123456"
+                            placeholder=" "
                             value={licenseNumber}
                             onChange={(e) => setLicenseNumber(e.target.value)}
                             required
@@ -460,11 +521,11 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
 
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="specialization">Specialization *</Label>
+                          <Label htmlFor="specialization">Specialization </Label>
                           <Input
                             id="specialization"
                             type="text"
-                            placeholder="Anxiety, Depression, etc."
+                            placeholder="Anxiety"
                             value={specialization}
                             onChange={(e) => setSpecialization(e.target.value)}
                             required
@@ -473,7 +534,7 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="yearsOfExperience">Years of Experience *</Label>
+                          <Label htmlFor="yearsOfExperience">Years of Experience </Label>
                           <Input
                             id="yearsOfExperience"
                             type="number"
@@ -488,6 +549,71 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                         </div>
                       </div>
 
+                      {/* Languages Section */}
+                      <div className="space-y-2">
+                        <Label htmlFor="languages">Languages  </Label>
+                        <div className="flex gap-2 mb-2">
+                          <Input
+                            id="languages"
+                            type="text"
+                            placeholder="Add a language you speak"
+                            value={newLanguage}
+                            onChange={(e) => setNewLanguage(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            className="flex-1"
+                            disabled={isLoading}
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={handleAddLanguage}
+                            disabled={isLoading}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                        
+                        {/* Language badges */}
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {selectedLanguages.map(language => (
+                            <Badge 
+                              key={language} 
+                              variant="secondary"
+                              className="px-3 py-1"
+                            >
+                              {language}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLanguage(language)}
+                                className="ml-2 text-xs hover:text-red-500"
+                                disabled={isLoading}
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {availableLanguages.map(language => (
+                            <Badge 
+                              key={language}
+                              variant={selectedLanguages.includes(language) ? "default" : "outline"}
+                              className="cursor-pointer hover:bg-accent"
+                              onClick={() => {
+                                if (!selectedLanguages.includes(language)) {
+                                  setSelectedLanguages([...selectedLanguages, language]);
+                                }
+                              }}
+                            >
+                              {language}
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        
+                      </div>
+
                       <div className="flex items-start space-x-3 py-4">
                         <Checkbox
                           id="terms"
@@ -500,7 +626,7 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                             htmlFor="terms"
                             className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            I agree to the terms and conditions of the service *
+                            I agree to the terms and conditions of the service 
                           </label>
                           <p className="text-xs text-muted-foreground">
                             By registering, you agree to our privacy policy and code of conduct
@@ -525,18 +651,21 @@ export function AuthPage({ onLogin, onBack }: AuthPageProps) {
                     )}
                   </Button>
                   
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={handleAuthTypeToggle}
-                      className="text-sm text-indigo-600 hover:underline disabled:opacity-50"
-                      disabled={isLoading}
-                    >
-                      {isSignup
-                        ? 'Already have an account? Sign in'
-                        : "Don't have an account? Sign up"}
-                    </button>
-                  </div>
+                  {/* Only show the toggle link if not forced to signup */}
+                  {!isForcedSignup && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleAuthTypeToggle}
+                        className="text-sm text-indigo-600 hover:underline disabled:opacity-50"
+                        disabled={isLoading}
+                      >
+                        {isSignup
+                          ? 'Already have an account? Sign in'
+                          : "Don't have an account? Sign up"}
+                      </button>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>

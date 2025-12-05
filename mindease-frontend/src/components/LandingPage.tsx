@@ -5,9 +5,11 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onSignUp: () => void;
+  onFooterLinkClick?: (linkType: string) => void;
 }
 
-export function LandingPage({ onGetStarted }: LandingPageProps) {
+export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: LandingPageProps) {
   const handleLearnMore = () => {
     const featuresSection = document.querySelector('#features-section');
     if (featuresSection) {
@@ -15,16 +17,25 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     }
   };
 
-
   // Handle footer link clicks
   const handleFooterLinkClick = (linkType: string) => {
+    // Handle features separately since it's local functionality
+    if (linkType === 'features') {
+      const featuresSection = document.querySelector('#features-section');
+      if (featuresSection) {
+        featuresSection.scrollIntoView({ behavior: 'smooth' });
+      }
+      return; // Always handle features locally, don't pass to parent
+    }
+    
+    // If onFooterLinkClick prop is provided, use it for other links
+    if (onFooterLinkClick) {
+      onFooterLinkClick(linkType);
+      return;
+    }
+    
+    // Fallback to local handling if prop not provided
     switch (linkType) {
-      case 'features':
-        const featuresSection = document.querySelector('#features-section');
-        if (featuresSection) {
-          featuresSection.scrollIntoView({ behavior: 'smooth' });
-        }
-        break;
       case 'pricing':
         alert('Pricing information coming soon!');
         break;
@@ -79,7 +90,6 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
             </div>
 
-            
             {/* Auth Buttons - Right */}
             <div className="flex items-center gap-4">
               <Button 
@@ -91,7 +101,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </Button>
               <Button 
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                onClick={onGetStarted}
+                onClick={onSignUp}
               >
                 Sign Up
               </Button>
@@ -120,7 +130,6 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 100% Anonymous & Confidential
               </div>
               <h1 className="text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
-              
                 <span className="block mt-4">You're not Alone, Just Anonymous.</span>
               </h1>
               <p className="text-xl text-white/90 leading-relaxed">
@@ -128,7 +137,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 Your journey to wellness starts here.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Button size="lg" className="text-lg px-8 h-14" onClick={onGetStarted}>
+                <Button size="lg" className="text-lg px-8 h-14" onClick={onSignUp}>
                   Get Started 
                 </Button>
                 <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={handleLearnMore}>
@@ -250,7 +259,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     </li>
                   ))}
                 </ul>
-                <Button size="lg" className="mt-4" onClick={onGetStarted}>
+                <Button size="lg" className="mt-4" onClick={onSignUp}>
                   Start Your Journey
                 </Button>
               </div>
@@ -269,7 +278,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   Your mental health matters, and so does your privacy.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center">
-                  <Button size="lg" variant="secondary" className="text-lg px-8 h-14" onClick={onGetStarted}>
+                  <Button size="lg" variant="secondary" className="text-lg px-8 h-14" onClick={onSignUp}>
                     Get Started Now
                   </Button>
                 </div>

@@ -43,12 +43,7 @@ export function TherapistLiveSession({
   const user = getCurrentUser();
   const [sessionData, setSessionData] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'therapist',
-      text: "Hello, welcome to our session ",
-      timestamp: new Date()
-    }
+    
   ]);
   const [newMessage, setNewMessage] = useState('');
   const [isMicOn, setIsMicOn] = useState(true);
@@ -182,12 +177,12 @@ export function TherapistLiveSession({
 
     // Voice session events
     socketService.onUserJoinedVoice((data) => {
-      console.log('Therapist - User joined voice session:', data);
+      console.log('Therapist - User joined  session:', data);
       toast.info(`Client joined voice session`);
     });
 
     socketService.onUserLeftVoice((data) => {
-      console.log('Therapist - User left voice session:', data);
+      console.log('Therapist - User left  session:', data);
       toast.info(`Client left voice session`);
     });
 
@@ -520,10 +515,10 @@ export function TherapistLiveSession({
               Dashboard
             </Button>
             <Button variant="outline" size="sm" onClick={debugConnection}>
-              Debug
+              Client
             </Button>
             <Button variant="outline" size="sm" onClick={debugMessages}>
-              Debug Messages
+              Messages
             </Button>
           </div>
           
@@ -783,15 +778,7 @@ export function TherapistLiveSession({
                     </p>
                     <div className="flex items-center gap-4">
                       <p className="font-semibold text-indigo-600">{formatTime(sessionTime)}</p>
-                      {!sessionEnded && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleEndCall}
-                        >
-                          End Session
-                        </Button>
-                      )}
+                      
                     </div>
                   </div>
                   

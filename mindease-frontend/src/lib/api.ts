@@ -1,7 +1,22 @@
-// API Configuration - Use relative URLs for both environments
-const API_BASE_URL = '/api';
+// API Configuration - Use absolute URLs for Render deployment
+const getApiBaseUrl = () => {
+  // Priority 1: Environment variable (set in Render dashboard)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Priority 2: Hardcoded for Render
+  if (window.location.hostname.includes('onrender.com')) {
+    return 'https://mindease-backend-pze6.onrender.com/api';
+  }
+  
+  // Priority 3: Default local development
+  return '/api';
+};
 
-console.log(' API Base URL:', API_BASE_URL, 'Current origin:', window.location.origin);
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('API Base URL:', API_BASE_URL, 'Current origin:', window.location.origin);
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -10,11 +25,35 @@ const getAuthToken = (): string | null => {
 
 // Helper function to handle API responses
 async function handleResponse<T>(response: Response): Promise<T> {
+  console.log('Response status:', response.status);
+  console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+  
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-    throw new Error(error.message || 'Request failed');
+    // Try to get error text first
+    const errorText = await response.text();
+    console.error('Error response text:', errorText);
+    
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { message: errorText || 'An error occurred' };
+    }
+    
+    // Check for CORS errors
+    if (response.status === 0) {
+      throw new Error('Network error or CORS blocked the request. Check if backend is running and CORS is configured.');
+    }
+    
+    throw new Error(errorData.message || `Request failed with status ${response.status}`);
   }
-  return response.json();
+  
+  try {
+    return await response.json();
+  } catch (error) {
+    console.error('JSON parse error:', error);
+    throw new Error('Invalid JSON response from server');
+  }
 }
 
 // Generic fetch wrapper with auth
@@ -26,6 +65,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     ...options.headers,
   };
 
+  console.log('Making request to:', `${API_BASE_URL}${url}`);
+  
   return fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers,
@@ -53,14 +94,16 @@ export interface User {
 // ==================== AUTH API ====================
 
 export interface LoginCredentials {
-  username: string; 
+  username: string;
   password: string;
   role: 'user' | 'therapist';
 }
 
-export interface SignupData extends LoginCredentials {
-  email?: string;
-  name?: string;
+export interface SignupData {
+  email: string;
+  password: string;
+  role: 'user' | 'therapist';
+  anonymousName?: string;
   fullName?: string;
   phone?: string;
   licenseNumber?: string;
@@ -68,7 +111,7 @@ export interface SignupData extends LoginCredentials {
   yearsOfExperience?: number;
   credentials?: string;
   bio?: string;
-  anonymousName?: string; // Only for users
+  languages?: string[];
 }
 
 export interface AuthResponse {
@@ -87,10 +130,14 @@ export interface AnimalNameSuggestions {
 
 export const authAPI = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    console.log('Attempting login to:', `${API_BASE_URL}/auth/login`);
+    console.log('Credentials:', { ...credentials, password: '***' });
+    
     const response = await fetchWithAuth('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    
     const data = await handleResponse<AuthResponse>(response);
     
     // Store both token and user data consistently
@@ -102,10 +149,13 @@ export const authAPI = {
   },
 
   signup: async (data: SignupData): Promise<AuthResponse> => {
+    console.log('Attempting signup to:', `${API_BASE_URL}/auth/signup`);
+    
     const response = await fetchWithAuth('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    
     const authData = await handleResponse<AuthResponse>(response);
     
     // Store both token and user data consistently
@@ -140,7 +190,6 @@ export const authAPI = {
     }
   },
 
-  // New method to refresh user data from server
   refreshCurrentUser: async (): Promise<User | null> => {
     try {
       const token = getAuthToken();
@@ -158,7 +207,6 @@ export const authAPI = {
     }
   },
 
-  // Check anonymous name availability (for users only)
   checkAnonymousName: async (anonymousName: string): Promise<AnonymousNameCheck> => {
     const response = await fetchWithAuth('/auth/check-anonymous-name', {
       method: 'POST',
@@ -167,7 +215,6 @@ export const authAPI = {
     return handleResponse<AnonymousNameCheck>(response);
   },
 
-  // Get animal name suggestions (for users only)
   getAnimalNameSuggestions: async (count: number = 5): Promise<AnimalNameSuggestions> => {
     const response = await fetchWithAuth(`/auth/animal-name-suggestions?count=${count}`);
     return handleResponse<AnimalNameSuggestions>(response);
@@ -185,19 +232,16 @@ export const checkAnonymousName = authAPI.checkAnonymousName;
 export const getAnimalNameSuggestions = authAPI.getAnimalNameSuggestions;
 
 export const usersAPI = {
-  // Get user by ID
   getById: async (id: string): Promise<User> => {
     const response = await fetchWithAuth(`/users/${id}`);
     return handleResponse<User>(response);
   },
 
-  // Get multiple users by IDs
   getByIds: async (ids: string[]): Promise<User[]> => {
     const response = await fetchWithAuth(`/users?ids=${ids.join(',')}`);
     return handleResponse<User[]>(response);
   },
 
-  // Update user profile
   update: async (updates: Partial<User>): Promise<User> => {
     const response = await fetchWithAuth('/users/profile', {
       method: 'PUT',
@@ -215,7 +259,6 @@ export interface Session {
   therapistId: string;
   therapistName: string;
   therapistInitials: string;
-  // User data fields for direct access
   userName?: string;
   userAnonymousName?: string;
   userInitials?: string;
@@ -227,11 +270,13 @@ export interface Session {
   duration?: string;
   createdAt?: string;
   updatedAt?: string;
+  rate?: number; // Added for $49 standard rate
 }
 
 export const sessionsAPI = {
-  // Book a new session
   create: async (sessionData: Omit<Session, '_id' | 'userId'>): Promise<Session> => {
+    console.log('Creating session with data:', sessionData);
+    
     const response = await fetchWithAuth('/sessions', {
       method: 'POST',
       body: JSON.stringify(sessionData),
@@ -239,54 +284,46 @@ export const sessionsAPI = {
     return handleResponse<Session>(response);
   },
 
-  // Get user's upcoming sessions
   getUpcoming: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/upcoming');
     return handleResponse<Session[]>(response);
   },
 
-  // Get user's joinable sessions
   getJoinable: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/joinable');
     return handleResponse<Session[]>(response);
   },
 
-  // Get user's past sessions
   getPast: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/past');
     return handleResponse<Session[]>(response);
   },
 
-  // Get all user sessions
   getAll: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions');
     return handleResponse<Session[]>(response);
   },
 
-  // Get therapist's upcoming sessions
   getTherapistUpcoming: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/therapist/upcoming');
     return handleResponse<Session[]>(response);
   },
 
-  // Get therapist's joinable sessions
   getTherapistJoinable: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/therapist/joinable');
     return handleResponse<Session[]>(response);
   },
-  // Get therapist's past sessions
+
   getTherapistPast: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/therapist/past');
     return handleResponse<Session[]>(response);
   },
 
-  // Get all therapist sessions
   getTherapistSessions: async (): Promise<Session[]> => {
     const response = await fetchWithAuth('/sessions/therapist/sessions');
     return handleResponse<Session[]>(response);
   },
 
-  // Update a session
   update: async (sessionId: string, updates: Partial<Session>): Promise<Session> => {
     const response = await fetchWithAuth(`/sessions/${sessionId}`, {
       method: 'PUT',
@@ -295,7 +332,6 @@ export const sessionsAPI = {
     return handleResponse<Session>(response);
   },
 
-  // Cancel a session
   cancel: async (sessionId: string): Promise<void> => {
     const response = await fetchWithAuth(`/sessions/${sessionId}`, {
       method: 'DELETE',
@@ -303,7 +339,6 @@ export const sessionsAPI = {
     return handleResponse<void>(response);
   },
 
-  // Rate a session
   rate: async (sessionId: string, rating: number): Promise<Session> => {
     const response = await fetchWithAuth(`/sessions/${sessionId}/rate`, {
       method: 'POST',
@@ -312,7 +347,6 @@ export const sessionsAPI = {
     return handleResponse<Session>(response);
   },
 
-  // Check if session can be joined
   canJoinSession: async (sessionId: string): Promise<{ 
     canJoin: boolean; 
     reason: string;
@@ -324,7 +358,6 @@ export const sessionsAPI = {
     return handleResponse<any>(response);
   },
 
-  // Auto-complete past sessions
   autoCompletePastSessions: async (): Promise<{ 
     message: string; 
     completedCount: number;
@@ -361,6 +394,7 @@ export interface Therapist {
   languages?: string[];
   experience?: number;
   realName: string;
+  bio?: string;
 }
 
 export interface TherapistAvailability {
@@ -369,13 +403,11 @@ export interface TherapistAvailability {
 }
 
 export const therapistsAPI = {
-  // Get current therapist profile
   getCurrent: async (): Promise<Therapist> => {
     const response = await fetchWithAuth('/therapists/me');
     return handleResponse<Therapist>(response);
   },
 
-  // Get therapists for discovery with filters
   discover: async (filters?: {
     specialization?: string;
     minRating?: number;
@@ -395,7 +427,6 @@ export const therapistsAPI = {
     return handleResponse<Therapist[]>(response);
   },
 
-  // Get all therapists
   getAll: async (): Promise<Therapist[]> => {
     try {
       console.log("Fetching therapists from DISCOVER endpoint...");
@@ -409,19 +440,16 @@ export const therapistsAPI = {
     }
   },
 
-  // Get therapist by ID
   getById: async (id: string): Promise<Therapist> => {
     const response = await fetchWithAuth(`/therapists/${id}`);
     return handleResponse<Therapist>(response);
   },
 
-  // Get therapist availability
   getAvailability: async (therapistId: string): Promise<TherapistAvailability[]> => {
     const response = await fetchWithAuth(`/therapists/${therapistId}/availability`);
     return handleResponse<TherapistAvailability[]>(response);
   },
 
-  // Update therapist availability (therapist only)
   updateAvailability: async (availability: TherapistAvailability[]): Promise<void> => {
     const response = await fetchWithAuth('/therapists/availability', {
       method: 'PUT',
@@ -430,7 +458,6 @@ export const therapistsAPI = {
     return handleResponse<void>(response);
   },
 
-  // Get all registered therapists (compatible with old interface)
   getAllTherapists: async (): Promise<Therapist[]> => {
     return therapistsAPI.getAll();
   }
@@ -448,7 +475,6 @@ export interface MoodLog {
 }
 
 export const moodAPI = {
-  // Create a mood log
   create: async (moodData: Omit<MoodLog, '_id' | 'userId'>): Promise<MoodLog> => {
     const response = await fetchWithAuth('/mood', {
       method: 'POST',
@@ -457,19 +483,16 @@ export const moodAPI = {
     return handleResponse<MoodLog>(response);
   },
 
-  // Get all mood logs
   getAll: async (): Promise<MoodLog[]> => {
     const response = await fetchWithAuth('/mood');
     return handleResponse<MoodLog[]>(response);
   },
 
-  // Get mood logs by date range
   getByDateRange: async (startDate: string, endDate: string): Promise<MoodLog[]> => {
     const response = await fetchWithAuth(`/mood?startDate=${startDate}&endDate=${endDate}`);
     return handleResponse<MoodLog[]>(response);
   },
 
-  // Get mood statistics
   getStats: async (): Promise<{ averageMood: number; totalLogs: number; moodDistribution: Record<string, number> }> => {
     const response = await fetchWithAuth('/mood/stats');
     return handleResponse<any>(response);
@@ -491,7 +514,6 @@ export interface JournalEntry {
 }
 
 export const journalAPI = {
-  // Create a journal entry
   create: async (entryData: Omit<JournalEntry, '_id' | 'userId'>): Promise<JournalEntry> => {
     const response = await fetchWithAuth('/journal', {
       method: 'POST',
@@ -500,19 +522,16 @@ export const journalAPI = {
     return handleResponse<JournalEntry>(response);
   },
 
-  // Get all journal entries
   getAll: async (): Promise<JournalEntry[]> => {
     const response = await fetchWithAuth('/journal');
     return handleResponse<JournalEntry[]>(response);
   },
 
-  // Get journal entry by ID
   getById: async (id: string): Promise<JournalEntry> => {
     const response = await fetchWithAuth(`/journal/${id}`);
     return handleResponse<JournalEntry>(response);
   },
 
-  // Update a journal entry
   update: async (id: string, updates: Partial<JournalEntry>): Promise<JournalEntry> => {
     const response = await fetchWithAuth(`/journal/${id}`, {
       method: 'PUT',
@@ -521,7 +540,6 @@ export const journalAPI = {
     return handleResponse<JournalEntry>(response);
   },
 
-  // Delete a journal entry
   delete: async (id: string): Promise<void> => {
     const response = await fetchWithAuth(`/journal/${id}`, {
       method: 'DELETE',
@@ -530,7 +548,7 @@ export const journalAPI = {
   },
 };
 
-// ==================== MESSAGES API (for live sessions) ====================
+// ==================== MESSAGES API ====================
 
 export interface Message {
   _id?: string;
@@ -542,13 +560,11 @@ export interface Message {
 }
 
 export const messagesAPI = {
-  // Get messages for a session
   getBySession: async (sessionId: string): Promise<Message[]> => {
     const response = await fetchWithAuth(`/messages/${sessionId}`);
     return handleResponse<Message[]>(response);
   },
 
-  // Send a message (typically done via Socket.io, but API fallback)
   send: async (messageData: Omit<Message, '_id'>): Promise<Message> => {
     const response = await fetchWithAuth('/messages', {
       method: 'POST',
@@ -571,13 +587,11 @@ export interface Exercise {
 }
 
 export const exercisesAPI = {
-  // Get all exercises
   getAll: async (): Promise<Exercise[]> => {
     const response = await fetchWithAuth('/exercises');
     return handleResponse<Exercise[]>(response);
   },
 
-  // Get exercises by category
   getByCategory: async (category: string): Promise<Exercise[]> => {
     const response = await fetchWithAuth(`/exercises?category=${category}`);
     return handleResponse<Exercise[]>(response);
@@ -597,13 +611,11 @@ export interface Resource {
 }
 
 export const resourcesAPI = {
-  // Get all resources
   getAll: async (): Promise<Resource[]> => {
     const response = await fetchWithAuth('/resources');
     return handleResponse<Resource[]>(response);
   },
 
-  // Get resources by category
   getByCategory: async (category: string): Promise<Resource[]> => {
     const response = await fetchWithAuth(`/resources?category=${category}`);
     return handleResponse<Resource[]>(response);
@@ -620,5 +632,5 @@ export default {
   messages: messagesAPI,
   exercises: exercisesAPI,
   resources: resourcesAPI,
-  users: usersAPI, 
+  users: usersAPI,
 };

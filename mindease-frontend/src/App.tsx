@@ -3,7 +3,6 @@ import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 import { UserDashboard } from "./components/UserDashboard";
 import { TherapistDashboard } from "./components/TherapistDashboard";
-
 import { LiveSession } from "./components/LiveSession";
 import { TherapistLiveSession } from "./components/TherapistLiveSession";
 import { UpcomingSessions } from "./components/UpcomingSessions";
@@ -13,10 +12,15 @@ import { Journal } from "./components/Journal";
 import { Exercises } from "./components/Exercises";
 import { Resources } from "./components/Resources";
 import { TherapistDiscovery } from "./components/TherapistDiscovery";
+// Import the new pages
+import { PricingPage } from "./components/PricingPage";
+import { FaqPage } from "./components/FAQPage";
+import { HelpCenterPage } from "./components/HelpCenter";
+import { PrivacyPolicyPage } from "./components/PrivacyPolicy";
+import { TermsOfServicePage } from "./components/TermsOfService";
+
 import { getCurrentUser, logout } from "./lib/api";
 import { Toaster } from "./components/ui/sonner";
-
-// Import the User type from the API
 import type { User } from "./lib/api";
 
 type AppPage = 
@@ -34,7 +38,12 @@ type AppPage =
   | 'exercises'
   | 'resources'
   | 'progress'
-  | 'therapist-discovery';
+  | 'therapist-discovery'
+  | 'pricing'
+  | 'faq'
+  | 'help-center'
+  | 'privacy-policy'
+  | 'terms-of-service';
 
 // Simple error boundary component
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
@@ -107,6 +116,7 @@ export default function App() {
     sessionId: ''
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   // Load user on app start and set up consistent user state
   useEffect(() => {
@@ -218,6 +228,31 @@ export default function App() {
     setCurrentPage('live-session');
   };
 
+  // Handlers for LandingPage buttons
+  const handleGetStarted = () => {
+    setAuthMode('login');
+    setCurrentPage('auth');
+  };
+
+  const handleSignUp = () => {
+    setAuthMode('signup');
+    setCurrentPage('auth');
+  };
+
+  // Update AuthPage to use initialMode prop
+  const handleAuthPageBack = () => {
+    setCurrentPage('landing');
+  };
+
+  // Helper for back navigation from footer pages
+  const handleBackToAppropriatePage = () => {
+    if (currentUser) {
+      setCurrentPage(currentUser.role === 'therapist' ? 'therapist-dashboard' : 'user-dashboard');
+    } else {
+      setCurrentPage('landing');
+    }
+  };
+
   // Fallback component for errors
   const FallbackComponent = ({ pageName }: { pageName: string }) => (
     <div className="min-h-screen bg-yellow-50 flex items-center justify-center">
@@ -240,13 +275,53 @@ export default function App() {
     try {
       switch (currentPage) {
         case 'landing':
-          return <LandingPage onGetStarted={() => setCurrentPage('auth')} />;
+          return (
+            <LandingPage 
+              onGetStarted={handleGetStarted} 
+              onSignUp={handleSignUp}
+              onFooterLinkClick={(linkType) => {
+                // Handle footer link clicks
+                switch (linkType) {
+                  case 'pricing':
+                    setCurrentPage('pricing');
+                    break;
+                  case 'faq':
+                    setCurrentPage('faq');
+                    break;
+                  case 'help-center':
+                    setCurrentPage('help-center');
+                    break;
+                  case 'privacy-policy':
+                    setCurrentPage('privacy-policy');
+                    break;
+                  case 'terms-of-service':
+                    setCurrentPage('terms-of-service');
+                    break;
+                  case 'features':
+                    // Already handled in LandingPage itself
+                    break;
+                  case 'suicide-hotline':
+                    window.open('tel:988', '_self');
+                    break;
+                  case 'crisis-text-line':
+                    window.open('sms:741741', '_self');
+                    break;
+                  case 'emergency':
+                    window.open('tel:911', '_self');
+                    break;
+                  default:
+                    break;
+                }
+              }}
+            />
+          );
         
         case 'auth':
           return (
             <AuthPage
               onLogin={handleLogin}
-              onBack={() => setCurrentPage('landing')}
+              onBack={handleAuthPageBack}
+              initialMode={authMode}
             />
           );
         
@@ -287,7 +362,6 @@ export default function App() {
             <SessionHistory
               onBack={() => setCurrentPage('user-dashboard')}
             />
-            
           );
         
         case 'live-session':
@@ -304,10 +378,10 @@ export default function App() {
         case 'therapist-live-session':
           return (
             <TherapistLiveSession 
-                onLogout={handleLogout} 
-                onNavigate={handleNavigate} 
-           />
-       );
+              onLogout={handleLogout} 
+              onNavigate={handleNavigate} 
+            />
+          );
         
         case 'mood':
           return (
@@ -354,8 +428,54 @@ export default function App() {
             />
           );
         
+        // New footer link pages
+        case 'pricing':
+          return (
+            <SafeComponent
+              component={PricingPage}
+              fallback={<FallbackComponent pageName="Pricing" />}
+              onBack={handleBackToAppropriatePage}
+            />
+          );
+        
+        case 'faq':
+          return (
+            <SafeComponent
+              component={FaqPage}
+              fallback={<FallbackComponent pageName="FAQ" />}
+              onBack={handleBackToAppropriatePage}
+            />
+          );
+        
+        case 'help-center':
+          return (
+            <SafeComponent
+              component={HelpCenterPage}
+              fallback={<FallbackComponent pageName="Help Center" />}
+              onBack={handleBackToAppropriatePage}
+            />
+          );
+        
+        case 'privacy-policy':
+          return (
+            <SafeComponent
+              component={PrivacyPolicyPage}
+              fallback={<FallbackComponent pageName="Privacy Policy" />}
+              onBack={handleBackToAppropriatePage}
+            />
+          );
+        
+        case 'terms-of-service':
+          return (
+            <SafeComponent
+              component={TermsOfServicePage}
+              fallback={<FallbackComponent pageName="Terms of Service" />}
+              onBack={handleBackToAppropriatePage}
+            />
+          );
+        
         default:
-          return <LandingPage onGetStarted={() => setCurrentPage('auth')} />;
+          return <LandingPage onGetStarted={handleGetStarted} onSignUp={handleSignUp} />;
       }
     } catch (error) {
       console.error('Error in renderPage:', error);

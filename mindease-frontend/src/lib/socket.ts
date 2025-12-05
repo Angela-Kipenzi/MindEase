@@ -1,28 +1,56 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// For socket connections - Use absolute URLs for Render deployment
+const getSocketUrl = () => {
+  // Priority 1: Environment variable (set in Render dashboard)
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  
+  // Priority 2: Hardcoded for Render
+  if (window.location.hostname.includes('onrender.com')) {
+    return 'https://mindease-backend-pze6.onrender.com';
+  }
+  
+  // Priority 3: Default local development
+  return 'http://localhost:5000';
+};
+
+const SOCKET_URL = getSocketUrl();
+
+console.log('Socket URL:', SOCKET_URL, 'Current origin:', window.location.origin);
 
 class SocketService {
   private socket: Socket | null = null;
 
   connect(token: string) {
     if (this.socket?.connected) {
+      console.log('Socket already connected');
       return this.socket;
     }
 
+    console.log('Connecting socket to:', SOCKET_URL);
+    
     this.socket = io(SOCKET_URL, {
       auth: { token },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+      withCredentials: true
     });
 
     this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
+      console.log('Socket connected successfully. ID:', this.socket?.id);
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+      console.error('Error details:', error);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected. Reason:', reason);
     });
 
     this.socket.on('error', (error) => {
@@ -34,8 +62,10 @@ class SocketService {
 
   disconnect() {
     if (this.socket) {
+      console.log('Disconnecting socket...');
       this.socket.disconnect();
       this.socket = null;
+      console.log('Socket disconnected');
     }
   }
 
@@ -46,17 +76,18 @@ class SocketService {
   // ==================== SESSION EVENTS ====================
 
   joinSession(sessionId: string) {
-    this.socket?.emit('join-session', { sessionId });
     console.log('Joining session:', sessionId);
+    this.socket?.emit('join-session', { sessionId });
   }
 
   leaveSession(sessionId: string) {
+    console.log('Leaving session:', sessionId);
     this.socket?.emit('leave-session', { sessionId });
   }
 
   // Send a message in a session
   sendMessage(sessionId: string, text: string) {
-    console.log('Sending message to session:', sessionId, text);
+    console.log('Sending message to session:', sessionId, 'Text:', text);
     this.socket?.emit('send-message', {
       sessionId,
       text,
@@ -78,14 +109,14 @@ class SocketService {
 
   // End session for all participants
   endSession(sessionId: string, endedBy: string, endedByRole: 'user' | 'therapist') {
+    console.log('Ending session:', sessionId, 'by:', endedByRole, 'user:', endedBy);
     this.socket?.emit('end-session', { sessionId, endedBy, endedByRole });
-    console.log('Ending session:', sessionId, 'by:', endedByRole);
   }
 
   // Submit rating
   submitRating(sessionId: string, rating: number, ratedBy: string, ratedByRole: 'user' | 'therapist') {
+    console.log('Submitting rating:', rating, 'for session:', sessionId, 'by:', ratedByRole);
     this.socket?.emit('submit-rating', { sessionId, rating, ratedBy, ratedByRole });
-    console.log('Submitting rating:', rating, 'for session:', sessionId);
   }
 
   // Listen for session ended events
@@ -110,11 +141,13 @@ class SocketService {
 
   // Join voice session
   joinVoiceSession(sessionId: string) {
+    console.log('Joining voice session:', sessionId);
     this.socket?.emit('join-voice-session', { sessionId });
   }
 
   // Leave voice session
   leaveVoiceSession(sessionId: string) {
+    console.log('Leaving voice session:', sessionId);
     this.socket?.emit('leave-voice-session', { sessionId });
   }
 
@@ -139,16 +172,19 @@ class SocketService {
 
   // Send WebRTC offer
   sendVoiceOffer(sessionId: string, offer: any, userId: string) {
+    console.log('Sending voice offer for session:', sessionId);
     this.socket?.emit('voice-offer', { sessionId, offer, userId });
   }
 
   // Send WebRTC answer
   sendVoiceAnswer(sessionId: string, answer: any, userId: string) {
+    console.log('Sending voice answer for session:', sessionId);
     this.socket?.emit('voice-answer', { sessionId, answer, userId });
   }
 
   // Send ICE candidate
   sendIceCandidate(sessionId: string, candidate: any, userId: string) {
+    console.log('Sending ICE candidate for session:', sessionId);
     this.socket?.emit('ice-candidate', { sessionId, candidate, userId });
   }
 
@@ -181,6 +217,7 @@ class SocketService {
 
   // Toggle voice masking
   toggleVoiceMask(sessionId: string, enabled: boolean) {
+    console.log('Toggling voice mask:', enabled ? 'ON' : 'OFF', 'for session:', sessionId);
     this.socket?.emit('toggle-voice-mask', { sessionId, enabled });
   }
 
@@ -248,7 +285,8 @@ class SocketService {
     return {
       connected: this.socket?.connected,
       id: this.socket?.id,
-      disconnected: this.socket?.disconnected
+      disconnected: this.socket?.disconnected,
+      url: SOCKET_URL
     };
   }
 

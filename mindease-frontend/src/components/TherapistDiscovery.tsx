@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Calendar } from "./ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search, Filter, Star, Clock, DollarSign, Languages, UserCheck, AlertCircle, Phone, MessageCircle, Calendar as CalendarIcon, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { Search, Star, Clock, Languages, UserCheck, AlertCircle, Phone, MessageCircle, Calendar as CalendarIcon, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import { Input } from "./ui/input";
 import { therapistsAPI, sessionsAPI, type Therapist, getCurrentUser } from "../lib/api";
 import { toast } from "sonner";
@@ -65,12 +65,9 @@ const getTherapistDescription = (therapist: Therapist): string => {
   return therapist.description || therapist.about || 'Licensed therapist';
 };
 
-const getTherapistHourlyRate = (therapist: Therapist): number => {
-  return therapist.hourlyRate || 150;
-};
 
 const getTherapistLanguages = (therapist: Therapist): string[] => {
-  return therapist.languages || ['English'];
+  return therapist.languages || ['English', 'Spanish', 'French', 'German', 'Chinese', 'Swahili'];
 };
 
 const getTherapistExperience = (therapist: Therapist): number => {
@@ -90,9 +87,8 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
   
-  // Filter states
+  // Filter states - REMOVED maxRate filter
   const [specialization, setSpecialization] = useState("all");
-  const [maxRate, setMaxRate] = useState(200);
   const [language, setLanguage] = useState("all");
   const [minRating, setMinRating] = useState(0);
 
@@ -113,7 +109,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
 
   useEffect(() => {
     filterTherapists();
-  }, [therapists, searchTerm, specialization, maxRate, language, minRating]);
+  }, [therapists, searchTerm, specialization, language, minRating]); // Removed maxRate from dependencies
 
   // Load therapist availability when therapist is selected
   useEffect(() => {
@@ -146,7 +142,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
 
   const loadTherapistAvailability = async (therapistId: string) => {
     try {
-      // Try to get availability from API
+      // get availability from API
       const availability = await therapistsAPI.getAvailability(therapistId);
       setTherapistAvailability(availability);
     } catch (error) {
@@ -193,8 +189,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
       const matchesSpecialization = specialization === "all" || 
                                   therapistSpecialties.includes(specialization);
       
-      const therapistRate = getTherapistHourlyRate(therapist);
-      const matchesRate = therapistRate <= maxRate;
+      // REMOVED rate filter - all therapists have same rate
       
       const therapistLangs = getTherapistLanguages(therapist);
       const matchesLanguage = language === "all" || 
@@ -202,7 +197,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
       
       const matchesRating = therapist.rating >= minRating;
 
-      return matchesSearch && matchesSpecialization && matchesRate && matchesLanguage && matchesRating;
+      return matchesSearch && matchesSpecialization && matchesLanguage && matchesRating;
     });
 
     setFilteredTherapists(filtered);
@@ -229,7 +224,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
       if (slotDateTime <= now) return false;
     }
     
-    // SIMPLIFIED: Assume therapist is available if we don't have specific availability
+    
     // Check if we have therapist availability data
     if (therapistAvailability.length > 0) {
       const dayOfWeek = getDayOfWeek(selectedDate);
@@ -321,7 +316,8 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
         sessionType: sessionType,
         status: 'confirmed' as const,
         duration: '50 minutes',
-        userId: currentUser.id
+        userId: currentUser.id,
+        rate: 49 // Add standard rate to session data
       };
 
       console.log('Creating session with data:', sessionData);
@@ -361,6 +357,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
         sessionType: sessionData.sessionType,
         status: sessionData.status,
         duration: sessionData.duration,
+        rate: sessionData.rate, // Store rate
         userId: currentUser.id
       };
       
@@ -440,15 +437,18 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
               <p className="text-sm text-muted-foreground">All sessions are completely anonymous and confidential</p>
             </div>
           </div>
-          <Button 
-            onClick={refreshTherapists} 
-            variant="outline" 
-            className="flex items-center gap-2"
-            disabled={loading}
-          >
-            <UserCheck className="h-4 w-4" />
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
+          <div className="flex items-center gap-4">
+            
+            <Button 
+              onClick={refreshTherapists} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={loading}
+            >
+              <UserCheck className="h-4 w-4" />
+              {loading ? 'Loading...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -456,7 +456,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
         {/* Enhanced Filters */}
         <Card className="mb-8">
           <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 items-center">
               <Badge 
                 variant={specialization === "all" ? "default" : "outline"} 
                 className="cursor-pointer hover:bg-accent"
@@ -494,12 +494,12 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
         )}
 
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Enhanced Filters Sidebar */}
+          {/* Enhanced Filters Sidebar - REMOVED rate filter */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
+                  <Search className="h-4 w-4" />
                   Filters
                 </CardTitle>
               </CardHeader>
@@ -517,26 +517,6 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                       <option key={spec} value={spec}>{spec}</option>
                     ))}
                   </select>
-                </div>
-
-                {/* Max Rate Filter */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Max Hourly Rate: ${maxRate}
-                  </label>
-                  <input
-                    type="range"
-                    min="50"
-                    max="300"
-                    step="10"
-                    value={maxRate}
-                    onChange={(e) => setMaxRate(Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>$50</span>
-                    <span>$300</span>
-                  </div>
                 </div>
 
                 {/* Language Filter */}
@@ -563,10 +543,23 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                     className="w-full p-2 border rounded-md"
                   >
                     <option value={0}>Any Rating</option>
+                    <option value={2.0}>2.0+ Stars</option>
+                    <option value={3.0}>3.0+ Stars</option>
                     <option value={4.0}>4.0+ Stars</option>
                     <option value={4.5}>4.5+ Stars</option>
                   </select>
                 </div>
+
+                {/* Standard Rate Info Card */}
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-4">
+                    <h4 className="text-sm font-medium text-green-800 mb-2">Standard Rate</h4>
+                    <p className="text-xs text-green-700">
+                      All therapists charge <strong>$49</strong> for a 50-minute session.
+                      No hidden fees or variable pricing.
+                    </p>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </div>
@@ -588,7 +581,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="mt-2 text-muted-foreground">Loading therapists from database...</p>
+                <p className="mt-2 text-muted-foreground">Loading therapists...</p>
               </div>
             ) : therapists.length === 0 ? (
               <Card>
@@ -615,7 +608,6 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                     onClick={() => {
                       setSearchTerm("");
                       setSpecialization("all");
-                      setMaxRate(200);
                       setLanguage("all");
                       setMinRating(0);
                     }}
@@ -654,10 +646,9 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm text-muted-foreground">
-                                    ${getTherapistHourlyRate(therapist)}/hr
-                                  </span>
+                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                                    $49/50min
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
@@ -748,6 +739,25 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                 <p className="text-sm text-indigo-100">
                   Connect using your anonymous name, identity protected
                 </p>
+              </div>
+            </div>
+            {/* Added Pricing Info */}
+            <div className="mt-6 p-4 bg-white/10 rounded-lg">
+              <h4 className="font-semibold mb-2">Simple Pricing</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm">50-minute Session</p>
+                  <p className="text-2xl font-bold">$49</p>
+                </div>
+                <div>
+                  <p className="text-sm">Includes</p>
+                  <ul className="text-xs space-y-1">
+                    <li>• Complete anonymity</li>
+                    <li>• 50-minute session</li>
+                    <li>• Chat or audio option</li>
+                    <li>• End-to-end encryption</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -881,6 +891,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                 <h4 className="text-sm mb-2">Session Details</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Duration: 50 minutes</li>
+                  <li>• Rate: $49 (standard rate)</li>
                   <li>• Your identity: Anonymous</li>
                   <li>• Encrypted & Private</li>
                   {sessionType === 'audio' && <li>• Voice masking available</li>}
@@ -898,7 +909,7 @@ export function TherapistDiscovery({ onBack, onSessionBooked }: TherapistDiscove
                     Booking...
                   </>
                 ) : (
-                  'Confirm Booking'
+                  'Confirm Booking - $49'
                 )}
               </Button>
               {!isBookingValid() && selectedDate && selectedTime && (

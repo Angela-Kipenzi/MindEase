@@ -47,12 +47,7 @@ export function LiveSession({
 }: LiveSessionProps) {
   const user = getCurrentUser();
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'therapist',
-      text: `Hello ${user?.anonymousName}, welcome to our session. I'm here to listen and support you. How are you feeling today?`,
-      timestamp: new Date()
-    }
+   
   ]);
   const [newMessage, setNewMessage] = useState('');
   const [isMicOn, setIsMicOn] = useState(true);
@@ -482,7 +477,7 @@ export function LiveSession({
               Dashboard
             </Button>
             <Button variant="outline" size="sm" onClick={debugConnection}>
-              Debug
+              Message
             </Button>
           </div>
           

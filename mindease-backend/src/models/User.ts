@@ -3,11 +3,11 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUser extends Document {
   username: string;        
   password: string;
-  anonymousName?: string;   // Optional - only for users
+  anonymousName?: string;
   role: 'user' | 'therapist';
-  email?: string;
+  email: string;
   name?: string;           
-  fullName?: string;       // For therapists (real name)
+  fullName?: string;
   phone?: string;
   licenseNumber?: string;
   specialization?: string;
@@ -24,8 +24,9 @@ const UserSchema = new Schema<IUser>(
   {
     username: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
       trim: true,
     },
     password: {
@@ -34,10 +35,12 @@ const UserSchema = new Schema<IUser>(
     },
     anonymousName: {
       type: String,
-      required: false, // Make it optional
-      unique: true,
-      sparse: true, // Allow null for therapists
+      required: function() {
+        return this.role === 'user'; // Only required for users
+      },
+      sparse: true,
       trim: true,
+      default: undefined,
     },
     role: {
       type: String,
@@ -47,14 +50,15 @@ const UserSchema = new Schema<IUser>(
     },
     email: {
       type: String,
-      sparse: true,
+      required: true,
+      unique: true,
       lowercase: true,
       trim: true,
     },
     name: String,           
     fullName: {
       type: String,
-      required: false, // Make it optional for now to avoid breaking existing users
+      required: false,
       trim: true,
     },       
     phone: String,
@@ -77,15 +81,46 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
+// Create a partial index for anonymousName - unique only for users
+UserSchema.index({ anonymousName: 1 }, {
+  unique: true,
+  sparse: true,
+  partialFilterExpression: { 
+    role: 'user',
+    anonymousName: { $exists: true, $ne: null }
+  }
+});
+
 // Add custom validation for user roles
 UserSchema.pre('save', function(next) {
-  if (this.role === 'user' && !this.anonymousName) {
-    next(new Error('Anonymous name is required for users'));
-  } else if (this.role === 'therapist' && !this.fullName) {
-    next(new Error('Full name is required for therapists'));
-  } else {
-    next();
+  if (this.role === 'user') {
+    if (!this.anonymousName || this.anonymousName.trim() === '') {
+      next(new Error('Anonymous name is required for users'));
+      return;
+    }
+  } else if (this.role === 'therapist') {
+    // Therapists should not have anonymousName - explicitly set to undefined
+    this.anonymousName = undefined;
+    
+    // Validate required therapist fields
+    if (!this.fullName) {
+      next(new Error('Full name is required for therapists'));
+      return;
+    }
+    if (!this.bio) {
+      next(new Error('Professional bio is required for therapists'));
+      return;
+    }
+    if (!this.specialization) {
+      next(new Error('Specialization is required for therapists'));
+      return;
+    }
+    if (!this.licenseNumber) {
+      next(new Error('License number is required for therapists'));
+      return;
+    }
   }
+  next();
 });
 
 export default mongoose.model<IUser>('User', UserSchema);

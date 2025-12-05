@@ -75,15 +75,12 @@ router.post('/login', async (req: Request, res: Response) => {
     const { username, password, role } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Find user by username or email
+    // Find user by email (username field now contains email)
     const user = await User.findOne({ 
-      $or: [
-        { username: username.toLowerCase().trim() },
-        { email: username.toLowerCase().trim() }
-      ],
+      email: username.toLowerCase().trim(),
       role: role || { $in: ['user', 'therapist'] }
     }) as IUser | null;
     
@@ -107,7 +104,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     console.log('User logged in successfully:', {
       id: user._id,
-      username: user.username,
+      email: user.email,
       anonymousName: user.anonymousName,
       role: user.role
     });
@@ -126,26 +123,36 @@ router.post('/login', async (req: Request, res: Response) => {
 router.post('/signup', async (req: Request, res: Response) => {
   try {
     const { 
-      username, 
+      email, 
       password, 
       role, 
-      email, 
       credentials, 
-      name,           
       fullName,       
       phone, 
       licenseNumber, 
       specialization, 
       yearsOfExperience,
       bio,
-      anonymousName // Only for users
+      languages,
+      anonymousName
     } = req.body;
     
-    console.log('Signup request:', { username, role, email, anonymousName });
+    console.log('Signup request:', { email, role, anonymousName });
 
     // Validate required fields
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
     // USER-SPECIFIC: Anonymous name required for users
@@ -163,28 +170,32 @@ router.post('/signup', async (req: Request, res: Response) => {
       }
     }
 
-    // THERAPIST-SPECIFIC: Full name required for therapists
+    // THERAPIST-SPECIFIC: Validation
     if (role === 'therapist') {
       if (!fullName || fullName.trim() === '') {
         return res.status(400).json({ message: 'Full name is required for therapists' });
       }
+      if (!bio || bio.trim() === '') {
+        return res.status(400).json({ message: 'Professional bio is required for therapists' });
+      }
+      if (!languages || !Array.isArray(languages) || languages.length === 0) {
+        return res.status(400).json({ message: 'Please select at least one language' });
+      }
+      if (!specialization || specialization.trim() === '') {
+        return res.status(400).json({ message: 'Specialization is required for therapists' });
+      }
+      if (!licenseNumber || licenseNumber.trim() === '') {
+        return res.status(400).json({ message: 'License number is required for therapists' });
+      }
     }
 
-    // Check if username or email already exists
+    // Check if email already exists
     const existingUser = await User.findOne({
-      $or: [
-        { username: username.toLowerCase().trim() },
-        { email: email ? email.toLowerCase().trim() : '' }
-      ]
+      email: email.toLowerCase().trim()
     });
     
     if (existingUser) {
-      if (existingUser.username === username.toLowerCase().trim()) {
-        return res.status(400).json({ message: 'Username already exists' });
-      }
-      if (existingUser.email === email?.toLowerCase().trim()) {
-        return res.status(400).json({ message: 'Email already registered' });
-      }
+      return res.status(400).json({ message: 'Email already registered' });
     }
 
     // Hash password
@@ -192,7 +203,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     // Create user with appropriate fields
     const userData: any = {
-      username: username.toLowerCase().trim(),
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
       role: role || 'user',
     };
@@ -200,22 +211,21 @@ router.post('/signup', async (req: Request, res: Response) => {
     // USER-SPECIFIC: Add user-provided anonymous name
     if (role === 'user' && anonymousName) {
       userData.anonymousName = anonymousName.trim();
+      userData.username = `user_${Date.now()}`;
     }
 
-    // THERAPIST-SPECIFIC: Add real name (no anonymous name for therapists)
+    // THERAPIST-SPECIFIC: Add real name and other fields
+    // IMPORTANT: Do NOT set anonymousName for therapists
     if (role === 'therapist') {
       userData.fullName = fullName.trim();
-      // Therapists don't get anonymous names - leave it undefined
+      userData.username = email.toLowerCase().trim();
+      userData.bio = bio.trim();
+      userData.specialization = specialization.trim();
+      userData.licenseNumber = licenseNumber.trim();
+      userData.anonymousName = undefined; // Explicitly set to undefined
+      if (yearsOfExperience) userData.yearsOfExperience = parseInt(yearsOfExperience);
+      if (phone) userData.phone = phone.trim();
     }
-
-    // Add optional fields if provided
-    if (email) userData.email = email.toLowerCase().trim();
-    if (name) userData.name = name.trim();
-    if (phone) userData.phone = phone.trim();
-    if (licenseNumber) userData.licenseNumber = licenseNumber.trim();
-    if (specialization) userData.specialization = specialization.trim();
-    if (yearsOfExperience) userData.yearsOfExperience = parseInt(yearsOfExperience);
-    if (bio) userData.bio = bio.trim();
 
     console.log('Creating user with data:', userData);
 
@@ -223,7 +233,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     // If therapist, create therapist profile
     if (role === 'therapist') {
-      const displayName = fullName || name || 'Professional Therapist';
+      const displayName = fullName || 'Professional Therapist';
       const initials = displayName
         .split(' ')
         .map((n: string) => n[0]) 
@@ -244,6 +254,8 @@ router.post('/signup', async (req: Request, res: Response) => {
         email: email,
         phone: phone,
         licenseNumber: licenseNumber,
+        languages: languages || ['English'],
+        bio: bio,
       });
     }
 
@@ -252,7 +264,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     console.log('User created successfully:', {
       id: user._id,
-      username: user.username,
+      email: user.email,
       anonymousName: user.anonymousName,
       role: user.role
     });
@@ -269,9 +281,6 @@ router.post('/signup', async (req: Request, res: Response) => {
       const field = Object.keys(error.keyPattern)[0];
       if (field === 'anonymousName') {
         return res.status(400).json({ message: 'Anonymous name already taken' });
-      }
-      if (field === 'username') {
-        return res.status(400).json({ message: 'Username already exists' });
       }
       if (field === 'email') {
         return res.status(400).json({ message: 'Email already registered' });
