@@ -155,7 +155,7 @@ router.post('/signup', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
-    // USER-SPECIFIC: Anonymous name required for users
+    //  Anonymous name required for users
     if (role === 'user') {
       if (!anonymousName || anonymousName.trim() === '') {
         return res.status(400).json({ message: 'Please choose an anonymous name' });
@@ -214,8 +214,8 @@ router.post('/signup', async (req: Request, res: Response) => {
       userData.username = `user_${Date.now()}`;
     }
 
-    // THERAPIST-SPECIFIC: Add real name and other fields
-    // IMPORTANT: Do NOT set anonymousName for therapists
+   
+    //No anonymousName for therapists
     if (role === 'therapist') {
       userData.fullName = fullName.trim();
       userData.username = email.toLowerCase().trim();

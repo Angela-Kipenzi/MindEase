@@ -639,6 +639,7 @@ export function AuthPage({ onLogin, onBack, initialMode = 'login' }: AuthPagePro
                   <Button 
                     type="submit" 
                     className="w-full h-12" 
+                  
                     disabled={isLoading}
                   >
                     {isLoading ? (

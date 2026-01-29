@@ -25,10 +25,10 @@ export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: Landi
       if (featuresSection) {
         featuresSection.scrollIntoView({ behavior: 'smooth' });
       }
-      return; // Always handle features locally, don't pass to parent
+      return; 
     }
     
-    // If onFooterLinkClick prop is provided, use it for other links
+    
     if (onFooterLinkClick) {
       onFooterLinkClick(linkType);
       return;
@@ -80,7 +80,7 @@ export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: Landi
                   <Heart className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  <span className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     MindEase
                   </span>
                   <span className="text-xs text-muted-foreground hidden sm:block">

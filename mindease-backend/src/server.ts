@@ -21,7 +21,7 @@ dotenv.config();
 const app: Application = express();
 const httpServer = createServer(app);
 
-// ==================== CORS CONFIGURATION ====================
+//  CORS CONFIGURATION 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Define allowed origins for different environments
@@ -112,7 +112,7 @@ const io = new SocketIOServer(httpServer, {
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// ==================== MIDDLEWARE ====================
+//  MIDDLEWARE 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -124,7 +124,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// ==================== ROUTES ====================
+//  ROUTES 
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/therapists', therapistRoutes);
@@ -134,7 +134,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/resources', resourceRoutes);
 
-// ==================== HEALTH & DEBUG ENDPOINTS ====================
+//  HEALTH & DEBUG ENDPOINTS 
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -142,7 +142,7 @@ app.get('/', (req: Request, res: Response) => {
     <html>
       <head><title>MindEase Backend</title></head>
       <body style="font-family: Arial, sans-serif; padding: 20px;">
-        <h1>🚀 MindEase Backend is Running!</h1>
+        <h1>MindEase Backend is Running!</h1>
         <p>Environment: <strong>${process.env.NODE_ENV || 'development'}</strong></p>
         <p>API Base URL: <code>/api</code></p>
         <p>Test endpoints:</p>
@@ -212,7 +212,7 @@ app.post('/api/test/login', (req: Request, res: Response) => {
   });
 });
 
-// ==================== ERROR HANDLING ====================
+//  ERROR HANDLING 
 
 // 404 handler
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -251,17 +251,15 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// ==================== SOCKET.IO SETUP ====================
+//  SOCKET.IO SETUP 
 setupSocketHandlers(io);
 
-// ==================== SERVER STARTUP ====================
+//  SERVER STARTUP 
 const PORT = process.env.PORT || 5000;
 
 connectDatabase().then(() => {
   httpServer.listen(PORT, () => {
-    console.log('========================================');
     console.log(' MindEase Backend Server Started');
-    console.log('========================================');
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Port: ${PORT}`);
     console.log(`Local: http://localhost:${PORT}`);

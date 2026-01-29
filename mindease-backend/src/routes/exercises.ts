@@ -1,11 +1,11 @@
-import express, { Response } from 'express';
+import { Router, Request, Response } from 'express';
 import Exercise from '../models/Exercise';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
 // Get all exercises
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { category } = req.query;
     const query = category ? { category } : {};

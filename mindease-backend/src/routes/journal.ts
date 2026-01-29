@@ -1,13 +1,13 @@
-import express, { Response } from 'express';
+import { Router, Request, Response } from 'express';
 import JournalEntry from '../models/JournalEntry';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
 // Get all journal entries
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const entries = await JournalEntry.find({ userId: req.user._id }).sort({ date: -1 });
+    const entries = await JournalEntry.find({ userId: req.user!._id }).sort({ date: -1 });
     res.json(entries);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -15,11 +15,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Get journal entry by ID
-router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const entry = await JournalEntry.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      userId: req.user!._id,
     });
     if (!entry) {
       return res.status(404).json({ message: 'Journal entry not found' });
@@ -31,11 +31,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 });
 
 // Create journal entry
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const entry = await JournalEntry.create({
       ...req.body,
-      userId: req.user._id,
+      userId: req.user!._id,
     });
     res.status(201).json(entry);
   } catch (error: any) {
@@ -44,10 +44,10 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Update journal entry
-router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const entry = await JournalEntry.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
+      { _id: req.params.id, userId: req.user!._id },
       req.body,
       { new: true }
     );
@@ -61,11 +61,11 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 });
 
 // Delete journal entry
-router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const entry = await JournalEntry.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id,
+      userId: req.user!._id,
     });
     if (!entry) {
       return res.status(404).json({ message: 'Journal entry not found' });
@@ -77,4 +77,3 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
 });
 
 export default router;
-

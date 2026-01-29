@@ -1,14 +1,14 @@
-import express, { Response } from 'express';
+import { Router, Request, Response } from 'express';
 import MoodLog from '../models/MoodLog';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
 // Get all mood logs
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
-    const query: any = { userId: req.user._id };
+    const query: any = { userId: req.user!._id };
     
     if (startDate && endDate) {
       query.date = { $gte: startDate, $lte: endDate };
@@ -22,7 +22,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Create or update mood log for today
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { date, mood, note } = req.body;
     
@@ -39,7 +39,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     
     // Upsert - create or update for the specific date
     const moodLog = await MoodLog.findOneAndUpdate(
-      { userId: req.user._id, date },
+      { userId: req.user!._id, date },
       { mood, note },
       { new: true, upsert: true, runValidators: true }
     );
@@ -47,7 +47,6 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     res.status(201).json(moodLog);
   } catch (error: any) {
     if (error.code === 11000) {
-      // This shouldn't happen with upsert, but just in case
       res.status(400).json({ message: 'Mood log for this date already exists' });
     } else {
       res.status(500).json({ message: error.message });
@@ -56,9 +55,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Get mood statistics
-router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const moodLogs = await MoodLog.find({ userId: req.user._id });
+    const moodLogs = await MoodLog.find({ userId: req.user!._id });
     
     const moodValues: Record<string, number> = {
       'Great': 5,

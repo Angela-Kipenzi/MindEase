@@ -1,15 +1,15 @@
-import express, { Response } from 'express';
+import { Router, Request, Response } from 'express';
 import Therapist from '../models/Therapist';
 import User from '../models/User';
-import { authenticateToken, AuthRequest, authorizeRole } from '../middleware/auth';
+import { authenticateToken, authorizeRole } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
 // Get therapist profile for current user
 router.get('/me', 
   authenticateToken, 
   authorizeRole('therapist'),
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
   try {
     const therapist = await Therapist.findOne({ userId: req.user!._id })
       .populate('userId', 'fullName email bio profileImage');
@@ -25,7 +25,7 @@ router.get('/me',
 });
 
 // Get all verified therapists for discovery
-router.get('/discover', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/discover', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { specialization, minRating, maxRate, language } = req.query;
     
@@ -34,7 +34,6 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
       isAvailable: true 
     };
 
-    // Add filters if provided
     if (specialization) {
       query.specialty = { $in: [specialization] };
     }
@@ -53,7 +52,6 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
       .sort({ rating: -1, experience: -1 })
       .select('-__v');
 
-    // Transform data for frontend
     const transformedTherapists = therapists.map(therapist => ({
       _id: therapist._id,
       userId: therapist.userId,
@@ -88,7 +86,7 @@ router.get('/discover', authenticateToken, async (req: AuthRequest, res: Respons
 });
 
 // Get all therapists (for admin)
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const therapists = await Therapist.find({ isVerified: true })
       .populate('userId', 'fullName email')
@@ -100,7 +98,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 // Get therapist by ID
-router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const therapist = await Therapist.findById(req.params.id)
       .populate('userId', 'fullName email bio profileImage');
@@ -115,7 +113,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 });
 
 // Get therapist availability
-router.get('/:id/availability', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/:id/availability', authenticateToken, async (req: Request, res: Response) => {
   try {
     const therapist = await Therapist.findById(req.params.id);
     if (!therapist) {
@@ -131,7 +129,7 @@ router.get('/:id/availability', authenticateToken, async (req: AuthRequest, res:
 router.put('/availability', 
   authenticateToken, 
   authorizeRole('therapist'),
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
   try {
     const therapist = await Therapist.findOneAndUpdate(
       { userId: req.user!._id },

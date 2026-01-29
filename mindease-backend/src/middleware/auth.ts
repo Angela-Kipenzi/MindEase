@@ -2,12 +2,27 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
-export interface AuthRequest extends Request {
-  user?: any;
+// Module augmentation - extends Express Request type globally
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        _id: any;
+        username: string | null;
+        anonymousName: string | null;
+        role: string;
+        email: string | null;
+        name: string | null;
+        fullName: string | null;
+        isActive: boolean;
+        isVerified: boolean;
+      };
+    }
+  }
 }
 
 export const authenticateToken = async (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -26,17 +41,17 @@ export const authenticateToken = async (
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // Add consistent user data to request
+    // Add consistent user data to request with null checks
     req.user = {
       _id: user._id,
-      username: user.username,
-      anonymousName: user.anonymousName,
-      role: user.role,
-      email: user.email,
-      name: user.name,
-      fullName: user.fullName,
-      isActive: user.isActive,
-      isVerified: user.isVerified
+      username: user.username || null,
+      anonymousName: user.anonymousName || null,
+      role: user.role || 'user',
+      email: user.email || null,
+      name: user.name || null,
+      fullName: user.fullName || null,
+      isActive: user.isActive !== undefined ? user.isActive : true,
+      isVerified: user.isVerified !== undefined ? user.isVerified : false
     };
     
     next();
@@ -46,7 +61,7 @@ export const authenticateToken = async (
 };
 
 export const authorizeRole = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Access denied' });
     }

@@ -1,11 +1,11 @@
-import express, { Response } from 'express';
+import { Router, Request, Response } from 'express';
 import Message from '../models/Message';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
-const router = express.Router();
+const router = Router();
 
 // Get messages for a session
-router.get('/:sessionId', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/:sessionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const messages = await Message.find({ sessionId: req.params.sessionId }).sort({ timestamp: 1 });
     res.json(messages);
@@ -15,12 +15,12 @@ router.get('/:sessionId', authenticateToken, async (req: AuthRequest, res: Respo
 });
 
 // Send a message (typically done via Socket.io, but API fallback)
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const message = await Message.create({
       ...req.body,
-      senderId: req.user._id,
-      senderType: req.user.role,
+      senderId: req.user!._id,
+      senderType: req.user!.role,
     });
     res.status(201).json(message);
   } catch (error: any) {
