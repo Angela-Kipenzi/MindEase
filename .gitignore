@@ -1,1 +1,18 @@
-".env" 
+# Environment files
+.env
+landlord-backend/.env
+landlordfrontend/.env
+
+# Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+
+#Runtime data
+*seed
+*mockData
