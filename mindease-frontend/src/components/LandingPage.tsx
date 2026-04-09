@@ -1,6 +1,6 @@
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Shield, MessageCircle, Calendar, Heart, Lock, Users } from "lucide-react";
+import { Shield, MessageCircle, Calendar, Heart, Lock } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface LandingPageProps {
@@ -65,10 +65,11 @@ export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: Landi
     }
   };
 
-  const oceanBackgroundUrl = "https://www.hdwallpapers.in/download/nice_beautiful_ocean_waves_beach_sand_in_purple_red_clouds_sky_background_during_sunset_hd_beach-1920x1080.jpg3";
+  const oceanBackgroundUrl =
+    "https://w0.peakpx.com/wallpaper/585/723/HD-wallpaper-nice-beautiful-ocean-waves-beach-sand-in-purple-red-clouds-sky-background-during-sunset-beach.jpg";
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="w-full">
       {/* Sticky Navigation Bar */}
       <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-200/50 transition-all duration-200">
         <div className="w-full px-6 py-4">
@@ -111,15 +112,12 @@ export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: Landi
       </nav>
 
       {/* Hero Section with Ocean Background */}
-      <div 
-        className="relative w-full min-h-screen flex items-center justify-center"
-        style={{
-          backgroundImage: `url('${oceanBackgroundUrl}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
+      <div className="relative w-full min-h-[calc(100vh-81px)] flex items-center justify-center overflow-hidden">
+        <ImageWithFallback
+          src={oceanBackgroundUrl}
+          alt="Calming ocean background"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/40"></div>
         
@@ -155,27 +153,7 @@ export function LandingPage({ onGetStarted, onSignUp, onFooterLinkClick }: Landi
                 </div>
               </div>
             </div>
-            <div className="relative">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1658881516403-7e6aa4a73b9a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzZXJlbmUlMjB3ZWxsbmVzc3xlbnwxfHx8fDE3NjAzNTU2NzN8MA&ixlib=rb-4.1.0&q=80&w=1080"
-                  alt="Peaceful wellness"
-                  className="w-full h-[500px] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/20 to-transparent"></div>
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-6 backdrop-blur-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                    <Users className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">500+</div>
-                    <div className="text-sm text-muted-foreground">Licensed Therapists</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            
           </div>
         </div>
       </div>
